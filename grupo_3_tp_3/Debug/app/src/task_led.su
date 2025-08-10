@@ -1,7 +1,0 @@
-../app/src/task_led.c:23:13:leds_off	8	static
-../app/src/task_led.c:31:13:led_red_on	8	static
-../app/src/task_led.c:36:13:led_green_on	8	static
-../app/src/task_led.c:41:13:led_blue_on	8	static
-../app/src/task_led.c:47:6:led_queue_init	24	static,ignoring_inline_asm
-../app/src/task_led.c:59:6:led_queue_add	32	static
-../app/src/task_led.c:78:6:led_process_event	24	static

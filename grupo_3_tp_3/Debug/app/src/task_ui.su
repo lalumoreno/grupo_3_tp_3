@@ -1,7 +1,0 @@
-../app/src/task_ui.c:29:13:callback_process_completed	24	static
-../app/src/task_ui.c:36:13:ui_cleanup_ui_resources	8	static
-../app/src/task_ui.c:47:13:ui_destroy_task	8	static
-../app/src/task_ui.c:56:13:ui_task	96	static
-../app/src/task_ui.c:142:6:ui_queue_init	16	static,ignoring_inline_asm
-../app/src/task_ui.c:157:6:ui_task_create	40	static,ignoring_inline_asm
-../app/src/task_ui.c:177:6:ui_queue_send	24	static

@@ -1,5 +1,0 @@
-../app/src/task_button.c:40:21:button_process_state	40	static
-../app/src/task_button.c:82:13:callback_process_completed	24	static
-../app/src/task_button.c:90:13:is_button_pressed	16	static
-../app/src/task_button.c:101:13:button_task	112	static
-../app/src/task_button.c:148:6:button_task_init	24	static,ignoring_inline_asm

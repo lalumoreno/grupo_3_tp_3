@@ -1,7 +1,0 @@
-../app/src/task_ui.c:29:13:callback_process_completed	1
-../app/src/task_ui.c:36:13:ui_cleanup_ui_resources	2
-../app/src/task_ui.c:47:13:ui_destroy_task	1
-../app/src/task_ui.c:56:13:ui_task	11
-../app/src/task_ui.c:142:6:ui_queue_init	3
-../app/src/task_ui.c:157:6:ui_task_create	3
-../app/src/task_ui.c:177:6:ui_queue_send	3

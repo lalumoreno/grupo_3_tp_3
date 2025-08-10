@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include "priority_queue.h"
 
 #define UI_TASK_STACK_SIZE 128
 #define UI_TASK_PRIORITY (tskIDLE_PRIORITY + 1)
@@ -18,13 +19,14 @@ TaskHandle_t task_ui_handle = NULL;
 led_t leds[NUM_LEDS] = {
 	{.queue = NULL}, // LED Rojo
 	{.queue = NULL}, // LED Verde
-	{.queue = NULL}  // LED Azul
+	{.queue = NULL}	 // LED Azul
 };
 
 static void callback_process_completed(void *context);
 static void ui_cleanup_ui_resources();
 static void ui_destroy_task();
 static void ui_task(void *argument);
+static void ui_event_priority(button_event *event, pq_item_t *item);
 
 static void callback_process_completed(void *context)
 {
@@ -42,15 +44,49 @@ static void ui_cleanup_ui_resources()
 		ui_queue = NULL;
 		uart_log("UII - Cola ui_queue eliminada\r\n");
 	}
+
+	// Liberar la cola de prioridades si es necesario
+	pq_deinit();
 }
 
 static void ui_destroy_task()
-{	
+{
 	// Liberar recursos si es necesario
 	ui_cleanup_ui_resources();
 	task_ui_handle = NULL;
 	vTaskDelete(NULL);
 	uart_log("UUI - Tarea ui_task eliminada\r\n");
+}
+
+static void ui_event_priority(button_event *event, pq_item_t *item)
+{
+	if (event == NULL || item == NULL)
+	{
+		uart_log("UUI - Error: Puntero nulo en ui_event_priority\r\n");
+		return;
+	}
+
+	switch (event->type)
+	{
+	case BUTTON_TYPE_PULSE:
+		uart_log("UUI - Evento de prioridad: PULSO\r\n");
+		item->priority = PRIORIDAD_ALTA;
+		break;
+	case BUTTON_TYPE_SHORT:
+		uart_log("UUI - Evento de prioridad: CORTO\r\n");
+		item->priority = PRIORIDAD_MEDIA;
+		break;
+	case BUTTON_TYPE_LONG:
+		uart_log("UUI - Evento de prioridad: LARGO\r\n");
+		item->priority = PRIORIDAD_BAJA;
+		break;
+	default:
+		return;
+	}
+
+	// Aquí se puede implementar la lógica para manejar eventos de prioridad
+	// Por ejemplo, se podría agregar el evento a una cola de prioridad
+	uart_log("UUI - Evento de prioridad procesado\r\n");
 }
 
 static void ui_task(void *argument)
@@ -63,10 +99,16 @@ static void ui_task(void *argument)
 		// Procesar eventos de la cola ui_queue
 		if (xQueueReceive(ui_queue, &button_event, pdMS_TO_TICKS(100)) == pdPASS)
 		{
+			// Interpretar estado del botón y crear mensaje con prioridad
+			pq_item_t item;
+			ui_event_priority(button_event, &item);
+			pq_push(&item);
+
 			bool valid_event = true;
 			led_event_t *led_event = (led_event_t *)pvPortMalloc(
 				sizeof(led_event_t));
 
+			// TODO remove this
 			if (led_event != NULL)
 			{
 				char msg[64];
@@ -126,7 +168,7 @@ static void ui_task(void *argument)
 			{
 				uart_log("UUI - Memoria insuficiente\r\n");
 			}
-		}
+		}/* // TODO revisar si es necesario destruir LA TAREA
 		else
 		{
 			// Verificar si la cola está vacía
@@ -135,18 +177,24 @@ static void ui_task(void *argument)
 				// Si no hay eventos, destruir la tarea
 				ui_destroy_task();
 			}
-		}
+		}*/
 	}
 }
 
 void ui_queue_init()
 {
+	if (ui_queue != NULL)
+	{
+		uart_log("UUI - Cola ui_queue ya inicializada\r\n");
+		return; // Ya está inicializada
+	}
+	
 	/* Crear cola de eventos del botón */
 	ui_queue = xQueueCreate(UI_EVENT_QUEUE_LENGTH, sizeof(button_event *));
 	configASSERT(ui_queue != NULL);
 	if (ui_queue == NULL)
 	{
-		uart_log("UUI - Error: no se pudo crear la cola de botón\r\n");
+		uart_log("UUI - Error: no se pudo crear ui_queue\r\n");
 		while (1)
 			;
 	}
@@ -154,24 +202,34 @@ void ui_queue_init()
 	uart_log("UUI - Cola ui_queue creada\r\n");
 }
 
-void ui_task_create(int event_type)
+bool ui_task_create(int event_type)
 {
 	BaseType_t status;
 	int led_type = event_type - 1;
-	
+
+	// Inicializar cola de prioridades
+	if(!pq_init(UI_EVENT_QUEUE_LENGTH))
+	{
+		uart_log("UUI - Error al inicializar la cola de prioridades\r\n");
+		return false; // TODO handle errors 
+	}
+
 	// Crear cola de LEDs
+	// TODO validar resultados para continuar
 	led_queue_init(&leds[led_type]);
 
 	// Crear cola de boton
 	ui_queue_init();
 
 	if (task_ui_handle == NULL)
-	{		
+	{
 		status = xTaskCreate(ui_task, "ui_task", UI_TASK_STACK_SIZE, (void *)leds,
 							 UI_TASK_PRIORITY, &task_ui_handle);
 		configASSERT(status == pdPASS);
 		uart_log("BTN - Tarea ui_task creada\r\n");
 	}
+
+	return true;
 }
 
 bool ui_queue_send(button_event *event)
@@ -192,4 +250,3 @@ bool ui_queue_send(button_event *event)
 	uart_log("UUI - Evento bnt_event agregado a ui_queue\r\n");
 	return true;
 }
-
