@@ -1,0 +1,4 @@
+../app/src/task_uart.c:21:13:uart_task	2
+../app/src/task_uart.c:33:13:uart_handle_error	1
+../app/src/task_uart.c:39:6:uart_log	5
+../app/src/task_uart.c:62:6:uart_task_init	3
