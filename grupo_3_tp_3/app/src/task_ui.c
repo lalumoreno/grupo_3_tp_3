@@ -11,22 +11,18 @@
 #define UI_TASK_STACK_SIZE 128
 #define UI_TASK_PRIORITY (tskIDLE_PRIORITY + 1)
 #define UI_EVENT_QUEUE_LENGTH 10
+#define TASK_PERIOD_MS 50
 
 /* Cola de eventos del botón*/
 QueueHandle_t ui_queue;
 TaskHandle_t task_ui_handle = NULL;
 
-led_t leds[NUM_LEDS] = {
-	{.queue = NULL}, // LED Rojo
-	{.queue = NULL}, // LED Verde
-	{.queue = NULL}	 // LED Azul
-};
-
 static void callback_process_completed(void *context);
 static void ui_cleanup_ui_resources();
 static void ui_destroy_task();
 static void ui_task(void *argument);
-static void ui_event_priority(button_event *event, pq_item_t *item);
+static void ui_set_priority(button_event *event, pq_item_t *item);
+static void ui_queue_init();
 
 static void callback_process_completed(void *context)
 {
@@ -44,9 +40,6 @@ static void ui_cleanup_ui_resources()
 		ui_queue = NULL;
 		uart_log("UII - Cola ui_queue eliminada\r\n");
 	}
-
-	// Liberar la cola de prioridades si es necesario
-	pq_deinit();
 }
 
 static void ui_destroy_task()
@@ -58,40 +51,35 @@ static void ui_destroy_task()
 	uart_log("UUI - Tarea ui_task eliminada\r\n");
 }
 
-static void ui_event_priority(button_event *event, pq_item_t *item)
+static void ui_set_priority(button_event *event, pq_item_t *item)
 {
 	if (event == NULL || item == NULL)
 	{
-		uart_log("UUI - Error: Puntero nulo en ui_event_priority\r\n");
+		uart_log("UUI - Error: Puntero nulo en ui_set_priority\r\n");
 		return;
 	}
 
 	switch (event->type)
 	{
 	case BUTTON_TYPE_PULSE:
-		uart_log("UUI - Evento de prioridad: PULSO\r\n");
+		uart_log("UUI - Evento de prioridad: ALTA\r\n");
 		item->priority = PRIORIDAD_ALTA;
 		break;
 	case BUTTON_TYPE_SHORT:
-		uart_log("UUI - Evento de prioridad: CORTO\r\n");
+		uart_log("UUI - Evento de prioridad: MEDIA\r\n");
 		item->priority = PRIORIDAD_MEDIA;
 		break;
 	case BUTTON_TYPE_LONG:
-		uart_log("UUI - Evento de prioridad: LARGO\r\n");
+		uart_log("UUI - Evento de prioridad: BAJA\r\n");
 		item->priority = PRIORIDAD_BAJA;
 		break;
 	default:
 		return;
 	}
-
-	// Aquí se puede implementar la lógica para manejar eventos de prioridad
-	// Por ejemplo, se podría agregar el evento a una cola de prioridad
-	uart_log("UUI - Evento de prioridad procesado\r\n");
 }
 
 static void ui_task(void *argument)
 {
-	led_t *leds = (led_t *)argument;
 	button_event *button_event;
 
 	while (1)
@@ -101,7 +89,7 @@ static void ui_task(void *argument)
 		{
 			// Interpretar estado del botón y crear mensaje con prioridad
 			pq_item_t item;
-			ui_event_priority(button_event, &item);
+			ui_set_priority(button_event, &item);
 			pq_push(&item);
 
 			bool valid_event = true;
@@ -144,15 +132,13 @@ static void ui_task(void *argument)
 
 				if (valid_event)
 				{
-					if (!led_queue_add(leds, led_event->type, led_event))
+					if (!led_queue_add(led_event))
 					{
 						uart_log("UUI - Error al agregar evento a la cola del LED\r\n");
 						vPortFree(led_event);
 						uart_log("UUI - Memoria de led_event liberada \r\n");
 					}
 				}
-
-				led_process_event(leds);
 
 				uart_log("UUI - Evento button_event procesado \r\n");
 				if (button_event->callback_process_completed != NULL)
@@ -168,27 +154,21 @@ static void ui_task(void *argument)
 			{
 				uart_log("UUI - Memoria insuficiente\r\n");
 			}
-		}/* // TODO revisar si es necesario destruir LA TAREA
-		else
-		{
-			// Verificar si la cola está vacía
-			if (uxQueueMessagesWaiting(ui_queue) == 0)
-			{
-				// Si no hay eventos, destruir la tarea
-				ui_destroy_task();
-			}
-		}*/
+
+		}
+
+		vTaskDelay(pdMS_TO_TICKS(TASK_PERIOD_MS));
 	}
 }
 
-void ui_queue_init()
+static void ui_queue_init()
 {
 	if (ui_queue != NULL)
 	{
 		uart_log("UUI - Cola ui_queue ya inicializada\r\n");
 		return; // Ya está inicializada
 	}
-	
+
 	/* Crear cola de eventos del botón */
 	ui_queue = xQueueCreate(UI_EVENT_QUEUE_LENGTH, sizeof(button_event *));
 	configASSERT(ui_queue != NULL);
@@ -202,32 +182,21 @@ void ui_queue_init()
 	uart_log("UUI - Cola ui_queue creada\r\n");
 }
 
-bool ui_task_create(int event_type)
-{
-	BaseType_t status;
-	int led_type = event_type - 1;
-
-	// Inicializar cola de prioridades
-	if(!pq_init(UI_EVENT_QUEUE_LENGTH))
-	{
-		uart_log("UUI - Error al inicializar la cola de prioridades\r\n");
-		return false; // TODO handle errors 
-	}
-
-	// Crear cola de LEDs
-	// TODO validar resultados para continuar
-	led_queue_init(&leds[led_type]);
-
+bool ui_task_init()
+{ 
 	// Crear cola de boton
-	ui_queue_init();
+	ui_queue_init(); //TODO validate result
 
-	if (task_ui_handle == NULL)
+	if (task_ui_handle != NULL)
 	{
-		status = xTaskCreate(ui_task, "ui_task", UI_TASK_STACK_SIZE, (void *)leds,
-							 UI_TASK_PRIORITY, &task_ui_handle);
-		configASSERT(status == pdPASS);
-		uart_log("BTN - Tarea ui_task creada\r\n");
+		uart_log("UUI - Tarea ui_task ya inicializada\r\n");
+		return true; // Ya está inicializada
 	}
+
+	BaseType_t status = xTaskCreate(ui_task, "ui_task", UI_TASK_STACK_SIZE, NULL,
+						 UI_TASK_PRIORITY, &task_ui_handle);
+	configASSERT(status == pdPASS);
+	uart_log("UUI - Tarea ui_task creada\r\n");
 
 	return true;
 }

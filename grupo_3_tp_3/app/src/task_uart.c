@@ -60,6 +60,7 @@ void uart_log(const char *msg) {
 
 // Inicialización de la cola y la tarea UART
 void uart_task_init(void) {
+
     // Crear la cola UART
     uart_queue = xQueueCreate(UART_QUEUE_LENGTH, sizeof(char *));
     if (uart_queue == NULL) {

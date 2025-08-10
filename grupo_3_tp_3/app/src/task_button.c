@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 #define TASK_BUTTON_STACK_SIZE 128
-#define TASK_BUTTON_PRIORITY (tskIDLE_PRIORITY + 1)
+#define TASK_BUTTON_PRIORITY (tskIDLE_PRIORITY + 2)
 #define TASK_PERIOD_MS 50
 #define BUTTON_PULSE_TIMEOUT 200
 #define BUTTON_SHORT_TIMEOUT 1000
@@ -110,9 +110,6 @@ static void button_task(void *argument)
 
 		if (temp_event.type != BUTTON_TYPE_NONE)
 		{
-			/* Crear colas y tareas ui procesar evento */
-			ui_task_create(temp_event.type);
-
 			// Asignar memoria para el evento
 			button_event *bnt_event = (button_event *)pvPortMalloc(
 				sizeof(button_event));

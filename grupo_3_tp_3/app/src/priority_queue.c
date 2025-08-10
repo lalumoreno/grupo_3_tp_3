@@ -61,7 +61,7 @@ bool pq_push(const pq_item_t *item) {
 
     xSemaphoreGive(pq.mutex);
 
-    uart_log("PRQ - Elemento añadido a la cola\r\n");
+    uart_log("PRQ - Elemento añadido a la cola de prioridades\r\n");
     return true;
 }
 
@@ -102,7 +102,7 @@ bool pq_pop(pq_item_t *out_item) {
 
     xSemaphoreGive(pq.mutex);
 
-    uart_log("PRQ - Elemento eliminado de la cola: prioridad");
+    uart_log("PRQ - Elemento eliminado de la cola de prioridades\r\n");
     return true;
 }
 
@@ -112,9 +112,9 @@ bool pq_is_empty(void) {
     xSemaphoreGive(pq.mutex);
 
     if (empty)  {
-        uart_log("PRQ - Cola vacía\r\n");
+        uart_log("PRQ - Cola de prioridades vacía\r\n");
     } else {
-        uart_log("PRQ - Cola no está vacía\r\n");
+        uart_log("PRQ - Cola de prioridades no está vacía\r\n");
     }
 
     return empty;
