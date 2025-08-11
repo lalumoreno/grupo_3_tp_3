@@ -67,7 +67,7 @@ static bool led_queue_init()
 	// Crear cola de eventos del LED
 	led_queue = xQueueCreate(LED_QUEUE_SIZE, sizeof(led_event_t *));
 	configASSERT(led_queue != NULL);
-	if(led_queue == NULL)
+	if (led_queue == NULL)
 	{
 		uart_log("LED - Error: no se pudo crear la cola led_queue\r\n");
 		return false; // Error al crear la cola
@@ -88,7 +88,7 @@ static bool led_get_priority(pq_item_t *item)
 	// Buscar elemento más prioritario y más antiguo
 	if (pq_pop(item) == false)
 	{
-		//uart_log("LED - Error al obtener el elemento de la cola de prioridades\r\n");
+		// uart_log("LED - Error al obtener el elemento de la cola de prioridades\r\n");
 		return false;
 	}
 
@@ -104,7 +104,7 @@ static bool led_create_event(led_event_t *event, pq_item_t *item)
 	}
 
 	switch (item->priority)
-	{	
+	{
 	case PRIORIDAD_BAJA:
 		event->type = LED_EVENT_BLUE;
 		break;
@@ -149,7 +149,7 @@ static void led_process_event()
 				break;
 			}
 
-			//uart_log("LED - Evento led_event procesado \r\n");
+			// uart_log("LED - Evento led_event procesado \r\n");
 			vTaskDelay(LED_ON_MS);
 			leds_off(); // Apagar LEDs después de un tiempo
 		}
@@ -159,10 +159,12 @@ static void led_process_event()
 static void led_task(void *argument)
 {
 	led_event_t led_event;
+	pq_item_t item;
+	leds_off();
 
 	while (1)
 	{
-		pq_item_t item;
+
 		if (!led_get_priority(&item))
 		{
 			vTaskDelay(pdMS_TO_TICKS(LED_TASK_PERIOD_MS));
@@ -176,7 +178,7 @@ static void led_task(void *argument)
 			continue;
 		}
 
-		if(!led_queue_add(&led_event))
+		if (!led_queue_add(&led_event))
 		{
 			vTaskDelay(pdMS_TO_TICKS(LED_TASK_PERIOD_MS));
 			continue;
@@ -204,7 +206,7 @@ bool led_queue_add(led_event_t *event)
 
 bool led_task_init()
 {
-	if(!led_queue_init())
+	if (!led_queue_init())
 	{
 		return false;
 	}

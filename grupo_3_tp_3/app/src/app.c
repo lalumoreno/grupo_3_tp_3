@@ -18,21 +18,24 @@ void app_error_handler()
 void app_init(void)
 {
 	/* Crear tareas del sistema */
-	if(!uart_task_init())
+	if (!uart_task_init())
 	{
 		app_error_handler();
 	}
 
-	//TODO handle errors
-	button_task_init();
-	
-	if(!ui_task_init())
+	if (!button_task_init())
+	{
+		uart_log("APP - Error al inicializar la tarea del botón\r\n");
+		app_error_handler();
+	}
+
+	if (!ui_task_init())
 	{
 		uart_log("APP - Error al inicializar la tarea de UI\r\n");
 		app_error_handler();
 	}
 
-	if(!led_task_init())
+	if (!led_task_init())
 	{
 		uart_log("APP - Error al inicializar la tarea de LED\r\n");
 		app_error_handler();

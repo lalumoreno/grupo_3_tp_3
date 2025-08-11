@@ -2,6 +2,7 @@
 #define INC_TASK_BUTTON_H_
 
 #include "cmsis_os.h"
+#include <stdbool.h>
 
 typedef enum
 {
@@ -21,6 +22,6 @@ typedef struct
   void *callback_context;
 } button_event;
 
-void button_task_init(void);
+bool button_task_init(void);
 
 #endif /* INC_TASK_BUTTON_H_ */

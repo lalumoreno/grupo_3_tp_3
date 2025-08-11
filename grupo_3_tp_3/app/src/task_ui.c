@@ -61,17 +61,16 @@ static void ui_task(void *argument)
 		if (xQueueReceive(ui_queue, &button_event, pdMS_TO_TICKS(100)) == pdPASS)
 		{
 			ui_set_priority(button_event, &item);
-			pq_push(&item); // Agregar a la cola de prioridades
+			if(!pq_push(&item))
+			{
+				uart_log("UUI - Error al agregar evento a la cola de prioridades\r\n");
+				button_event->callback_process_completed(button_event);
+				vTaskDelay(pdMS_TO_TICKS(TASK_PERIOD_MS));
+				continue;
+			}
 
 			uart_log("UUI - Evento button_event procesado \r\n");
-			if (button_event->callback_process_completed != NULL)
-			{
-				button_event->callback_process_completed(button_event);
-			}
-			else
-			{
-				uart_log("UUI - button_event callback vacio\r\n");
-			}
+			button_event->callback_process_completed(button_event);
 		}
 
 		vTaskDelay(pdMS_TO_TICKS(TASK_PERIOD_MS));
