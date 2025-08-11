@@ -16,7 +16,6 @@ typedef enum {
 typedef struct {
     priority_t priority;
     uint32_t timestamp;
-    void *data;
 } pq_item_t;
 
 /* API del driver */

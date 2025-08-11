@@ -75,24 +75,24 @@ bool pq_pop(pq_item_t *out_item) {
     }
 
     // Buscar elemento más prioritario y más antiguo
-    int best_index = -1;
+    int index = -1;
     for (uint32_t i = 0; i < pq.count; i++) {
         uint32_t idx = (pq.head + i) % pq.capacity;
-        if (best_index == -1) {
-            best_index = idx;
+        if (index == -1) {
+            index = idx;
         } else {
-            if (pq.buffer[idx].priority > pq.buffer[best_index].priority ||
-               (pq.buffer[idx].priority == pq.buffer[best_index].priority &&
-                pq.buffer[idx].timestamp < pq.buffer[best_index].timestamp)) {
-                best_index = idx;
+            if (pq.buffer[idx].priority > pq.buffer[index].priority ||
+               (pq.buffer[idx].priority == pq.buffer[index].priority &&
+                pq.buffer[idx].timestamp < pq.buffer[index].timestamp)) {
+                index = idx;
             }
         }
     }
 
-    *out_item = pq.buffer[best_index];
+    *out_item = pq.buffer[index];
 
     // Compactar cola (eliminar hueco)
-    for (uint32_t i = best_index; i != pq.tail; i = (i + 1) % pq.capacity) {
+    for (uint32_t i = index; i != pq.tail; i = (i + 1) % pq.capacity) {
         uint32_t next = (i + 1) % pq.capacity;
         pq.buffer[i] = pq.buffer[next];
     }

@@ -92,68 +92,16 @@ static void ui_task(void *argument)
 			ui_set_priority(button_event, &item);
 			pq_push(&item);
 
-			bool valid_event = true;
-			led_event_t *led_event = (led_event_t *)pvPortMalloc(
-				sizeof(led_event_t));
 
-			// TODO remove this
-			if (led_event != NULL)
-			{
-				char msg[64];
-				sprintf(msg, "UUI - Memoria led_event alocada: %d\r\n",
-						sizeof(*led_event));
-				uart_log(msg);
-
-				led_event->callback_process_completed = callback_process_completed;
-				led_event->callback_context = led_event;
-
-				switch (button_event->type)
-				{
-				case BUTTON_TYPE_PULSE:
-					uart_log("UUI - Boton tipo PULSO - activar LED rojo\r\n");
-					led_event->type = LED_EVENT_RED;
-					break;
-
-				case BUTTON_TYPE_SHORT:
-					uart_log("UUI - Boton tipo CORTO - activar LED verde\r\n");
-					led_event->type = LED_EVENT_GREEN;
-					break;
-
-				case BUTTON_TYPE_LONG:
-					uart_log("UUI - Boton tipo LARGO - activar LED azul\r\n");
-					led_event->type = LED_EVENT_BLUE;
-					break;
-
-				default:
-					uart_log("UUI - tipo de pulsacion no reconocido\r\n");
-					valid_event = false;
-					break;
-				}
-
-				if (valid_event)
-				{
-					if (!led_queue_add(led_event))
-					{
-						uart_log("UUI - Error al agregar evento a la cola del LED\r\n");
-						vPortFree(led_event);
-						uart_log("UUI - Memoria de led_event liberada \r\n");
-					}
-				}
-
-				uart_log("UUI - Evento button_event procesado \r\n");
-				if (button_event->callback_process_completed != NULL)
-				{
-					button_event->callback_process_completed(button_event);
-				}
-				else
-				{
-					uart_log("UUI - button_event callback vacio\r\n");
-				}
-			}
-			else
-			{
-				uart_log("UUI - Memoria insuficiente\r\n");
-			}
+	uart_log("UUI - Evento button_event procesado \r\n");
+	if (button_event->callback_process_completed != NULL)
+	{
+		button_event->callback_process_completed(button_event);
+	}
+	else
+	{
+		uart_log("UUI - button_event callback vacio\r\n");
+	}
 
 		}
 

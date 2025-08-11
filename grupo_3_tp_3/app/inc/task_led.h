@@ -16,11 +16,6 @@ typedef struct {
 	void *callback_context;
 } led_event_t;
 
-#define NUM_LEDS 3
-
-/* Declaraciones de las tareas para los LEDs */
-void led_queue_init();
-void led_process_event();
 bool led_queue_add(led_event_t *event);
 bool led_task_init();
 

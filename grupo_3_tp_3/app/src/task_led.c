@@ -4,10 +4,13 @@
 #include "cmsis_os.h"
 #include "task_uart.h"
 #include "board.h"
+#include "priority_queue.h"
 
 #define LED_TASK_STACK_SIZE 128
 #define LED_TASK_PRIORITY tskIDLE_PRIORITY
 #define LED_TASK_PERIOD_MS 50
+#define LED_ON_MS 5000
+#define LED_QUEUE_SIZE 10
 
 typedef enum
 {
@@ -24,6 +27,9 @@ static void leds_off();
 static void led_red_on();
 static void led_green_on();
 static void led_blue_on();
+static void led_queue_init();
+static void led_process_event();
+static bool led_get_priority(pq_item_t *item);
 
 static void leds_off()
 {
@@ -48,8 +54,8 @@ static void led_blue_on()
 	HAL_GPIO_WritePin(LED_BLUE_PORT, LED_BLUE_PIN, GPIO_PIN_SET);
 }
 
-// Inicializar la cola de un LED
-void led_queue_init()
+// Inicializar la cola de leds
+static void led_queue_init()
 {
 	if (led_queue != NULL)
 	{
@@ -58,7 +64,7 @@ void led_queue_init()
 	}
 
 	// Crear cola de eventos del LED
-	led_queue = xQueueCreate(NUM_LEDS, sizeof(led_event_t *));
+	led_queue = xQueueCreate(LED_QUEUE_SIZE, sizeof(led_event_t *));
 	configASSERT(led_queue != NULL);
 	if (led_queue == NULL)
 	{
@@ -70,21 +76,51 @@ void led_queue_init()
 	uart_log("LED - Cola led_queue creada\r\n");
 }
 
-bool led_queue_add(led_event_t *event)
+static bool led_get_priority(pq_item_t *item)
 {
-
-	BaseType_t sent = xQueueSend(led_queue, &event, portMAX_DELAY);
-	if (sent != pdPASS)
+	if (item == NULL)
 	{
-		uart_log("LED - Error agregando evento a la cola del LED\r\n");
+		uart_log("LED - Error: Puntero nulo en led_get_priority\r\n");
 		return false;
 	}
 
-	uart_log("LED - Evento led_event agregado a cola del LED\r\n");
-	return true;
+	// Buscar elemento más prioritario y más antiguo
+	if (pq_pop(item) == false)
+	{
+		//uart_log("LED - Error al obtener el elemento de la cola de prioridades\r\n");
+		return false;
+	}
+
+	led_event_t *led_event = pvPortMalloc(sizeof(led_event_t));
+	if (led_event == NULL)
+	{
+		uart_log("LED - Error: No se pudo asignar memoria para led_event\r\n");
+		return false;
+	}
+
+	switch (item->priority)
+	{
+	case PRIORIDAD_ALTA:
+		uart_log("LED - Evento de prioridad: ALTA - activar LED rojo\r\n");
+		led_event->type = LED_EVENT_RED;
+		break;
+	case PRIORIDAD_MEDIA:
+		uart_log("LED - Evento de prioridad: MEDIA - activar LED verde\r\n");
+		led_event->type = LED_EVENT_GREEN;
+		break;
+	case PRIORIDAD_BAJA:
+		uart_log("LED - Evento de prioridad: BAJA - activar LED azul\r\n");
+		led_event->type = LED_EVENT_BLUE;
+		break;
+	default:
+		uart_log("LED - Prioridad no reconocida\r\n");
+		break;
+	}
+
+	return led_queue_add(led_event);
 }
 
-void led_process_event()
+static void led_process_event()
 {
 	led_event_t *led_event;
 
@@ -113,16 +149,12 @@ void led_process_event()
 			}
 
 			uart_log("LED - Evento led_event procesado \r\n");
-			if (led_event->callback_process_completed != NULL)
-			{
-				led_event->callback_process_completed(led_event);
-			}
-			else
-			{
-				uart_log("LED - led_event callback vacio\r\n");
-			}
-		}
+			// Liberar memoria del evento
+			vPortFree(led_event);
 
+			vTaskDelay(LED_ON_MS);
+			leds_off(); // Apagar LEDs después de un tiempo
+		}
 	}
 }
 
@@ -130,9 +162,29 @@ static void led_task(void *argument)
 {
 	while (1)
 	{
+		pq_item_t item;
+		if (!led_get_priority(&item))
+		{
+			continue; // Si no se pudo obtener evento de prioridad, continuar
+		}
+
 		led_process_event();
 		vTaskDelay(LED_TASK_PERIOD_MS);
 	}
+}
+
+bool led_queue_add(led_event_t *event)
+{
+
+	BaseType_t sent = xQueueSend(led_queue, &event, portMAX_DELAY);
+	if (sent != pdPASS)
+	{
+		uart_log("LED - Error agregando evento a la cola del LED\r\n");
+		return false;
+	}
+
+	uart_log("LED - Evento led_event agregado a cola del LED\r\n");
+	return true;
 }
 
 bool led_task_init()
