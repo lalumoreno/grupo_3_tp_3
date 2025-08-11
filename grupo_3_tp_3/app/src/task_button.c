@@ -29,6 +29,8 @@ typedef struct
 	button_state_t state;
 } button_info_t;
 
+TaskHandle_t task_button_handle = NULL;
+
 static button_info_t button_info;
 
 static void button_task(void *argument);
@@ -83,7 +85,7 @@ static void callback_process_completed(void *context)
 {
 	button_event *event = (button_event *)context;
 	vPortFree(event);
-	uart_log("BTN - Memoria bnt_event liberada desde callback\r\n");
+	//uart_log("BTN - Memoria bnt_event liberada desde callback\r\n");
 }
 
 // Leer el estado del botón
@@ -106,7 +108,7 @@ static void button_task(void *argument)
 	while (1)
 	{
 		bool is_pressed = is_button_pressed();
-		button_event temp_event = button_process_state(is_pressed);
+		button_event temp_event = button_process_state(is_pressed); // TODO add event as parameter
 
 		if (temp_event.type != BUTTON_TYPE_NONE)
 		{
@@ -116,10 +118,7 @@ static void button_task(void *argument)
 
 			if (bnt_event != NULL)
 			{
-				char msg[UART_MSG_MAX_LEN];
-				sprintf(msg, "BTN - Memoria bnt_event alocada: %d\r\n",
-						sizeof(*bnt_event));
-				uart_log(msg);
+				//uart_log("BTN - Memoria bnt_event alocada\r\n");
 
 				*bnt_event = temp_event;
 				bnt_event->callback_process_completed = callback_process_completed;
@@ -129,7 +128,7 @@ static void button_task(void *argument)
 				if (!ui_queue_send(bnt_event))
 				{
 					vPortFree(bnt_event); // Liberar si no se pudo enviar
-					uart_log("BTN - Memoria de bnt_event liberada \r\n");
+					//uart_log("BTN - Memoria de bnt_event liberada \r\n");
 				}
 			}
 			else
@@ -144,7 +143,13 @@ static void button_task(void *argument)
 
 void button_task_init(void)
 {
-	BaseType_t status = xTaskCreate(button_task, "button_task", TASK_BUTTON_STACK_SIZE, NULL, TASK_BUTTON_PRIORITY, NULL);
+	if(task_button_handle != NULL)
+	{
+		uart_log("BTN - Tarea button_task ya inicializada\r\n");
+		return; // Ya está creada
+	}
+
+	BaseType_t status = xTaskCreate(button_task, "button_task", TASK_BUTTON_STACK_SIZE, NULL, TASK_BUTTON_PRIORITY, &task_button_handle);
 	configASSERT(status == pdPASS);
 	if (status != pdPASS)
 	{

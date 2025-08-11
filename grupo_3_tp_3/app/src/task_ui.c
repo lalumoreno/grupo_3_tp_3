@@ -17,39 +17,9 @@
 QueueHandle_t ui_queue;
 TaskHandle_t task_ui_handle = NULL;
 
-static void callback_process_completed(void *context);
-static void ui_cleanup_ui_resources();
-static void ui_destroy_task();
 static void ui_task(void *argument);
 static void ui_set_priority(button_event *event, pq_item_t *item);
-static void ui_queue_init();
-
-static void callback_process_completed(void *context)
-{
-	led_event_t *event = (led_event_t *)context;
-	vPortFree(event);
-	uart_log("UUI - Memoria led_event liberada desde callback\r\n");
-}
-
-static void ui_cleanup_ui_resources()
-{
-	// Liberar la cola de eventos si es necesario
-	if (ui_queue != NULL)
-	{
-		vQueueDelete(ui_queue);
-		ui_queue = NULL;
-		uart_log("UII - Cola ui_queue eliminada\r\n");
-	}
-}
-
-static void ui_destroy_task()
-{
-	// Liberar recursos si es necesario
-	ui_cleanup_ui_resources();
-	task_ui_handle = NULL;
-	vTaskDelete(NULL);
-	uart_log("UUI - Tarea ui_task eliminada\r\n");
-}
+static bool ui_queue_init();
 
 static void ui_set_priority(button_event *event, pq_item_t *item)
 {
@@ -62,18 +32,20 @@ static void ui_set_priority(button_event *event, pq_item_t *item)
 	switch (event->type)
 	{
 	case BUTTON_TYPE_PULSE:
-		uart_log("UUI - Evento de prioridad: ALTA\r\n");
+		uart_log("UUI - Elemento de prioridad: ALTA\r\n");
 		item->priority = PRIORIDAD_ALTA;
 		break;
 	case BUTTON_TYPE_SHORT:
-		uart_log("UUI - Evento de prioridad: MEDIA\r\n");
+		uart_log("UUI - Elemento de prioridad: MEDIA\r\n");
 		item->priority = PRIORIDAD_MEDIA;
 		break;
 	case BUTTON_TYPE_LONG:
-		uart_log("UUI - Evento de prioridad: BAJA\r\n");
+		uart_log("UUI - Elemento de prioridad: BAJA\r\n");
 		item->priority = PRIORIDAD_BAJA;
 		break;
 	default:
+		uart_log("UUI - Elemento de prioridad desconocida\r\n");
+		item->priority = PRIORIDAD_NONE; // Asignar prioridad NONE si es desconocido
 		return;
 	}
 }
@@ -81,40 +53,37 @@ static void ui_set_priority(button_event *event, pq_item_t *item)
 static void ui_task(void *argument)
 {
 	button_event *button_event;
+	pq_item_t item;
 
 	while (1)
 	{
 		// Procesar eventos de la cola ui_queue
 		if (xQueueReceive(ui_queue, &button_event, pdMS_TO_TICKS(100)) == pdPASS)
 		{
-			// Interpretar estado del botón y crear mensaje con prioridad
-			pq_item_t item;
 			ui_set_priority(button_event, &item);
-			pq_push(&item);
+			pq_push(&item); // Agregar a la cola de prioridades
 
-
-	uart_log("UUI - Evento button_event procesado \r\n");
-	if (button_event->callback_process_completed != NULL)
-	{
-		button_event->callback_process_completed(button_event);
-	}
-	else
-	{
-		uart_log("UUI - button_event callback vacio\r\n");
-	}
-
+			uart_log("UUI - Evento button_event procesado \r\n");
+			if (button_event->callback_process_completed != NULL)
+			{
+				button_event->callback_process_completed(button_event);
+			}
+			else
+			{
+				uart_log("UUI - button_event callback vacio\r\n");
+			}
 		}
 
 		vTaskDelay(pdMS_TO_TICKS(TASK_PERIOD_MS));
 	}
 }
 
-static void ui_queue_init()
+static bool ui_queue_init()
 {
 	if (ui_queue != NULL)
 	{
 		uart_log("UUI - Cola ui_queue ya inicializada\r\n");
-		return; // Ya está inicializada
+		return true; // Ya está inicializada
 	}
 
 	/* Crear cola de eventos del botón */
@@ -122,18 +91,22 @@ static void ui_queue_init()
 	configASSERT(ui_queue != NULL);
 	if (ui_queue == NULL)
 	{
-		uart_log("UUI - Error: no se pudo crear ui_queue\r\n");
-		while (1)
-			;
+		uart_log("UUI - Error: no se pudo crear la cola ui_queue\r\n");
+		return false; // Error al crear la cola
 	}
 
 	uart_log("UUI - Cola ui_queue creada\r\n");
+	return true;
 }
 
 bool ui_task_init()
-{ 
+{
 	// Crear cola de boton
-	ui_queue_init(); //TODO validate result
+	if(!ui_queue_init())
+	{
+		uart_log("UUI - Error al inicializar la cola ui_queue\r\n");
+		return false; // Error al inicializar la cola
+	}
 
 	if (task_ui_handle != NULL)
 	{
@@ -142,7 +115,7 @@ bool ui_task_init()
 	}
 
 	BaseType_t status = xTaskCreate(ui_task, "ui_task", UI_TASK_STACK_SIZE, NULL,
-						 UI_TASK_PRIORITY, &task_ui_handle);
+									UI_TASK_PRIORITY, &task_ui_handle);
 	configASSERT(status == pdPASS);
 	uart_log("UUI - Tarea ui_task creada\r\n");
 

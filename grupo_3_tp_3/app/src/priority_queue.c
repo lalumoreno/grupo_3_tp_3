@@ -102,7 +102,7 @@ bool pq_pop(pq_item_t *out_item) {
 
     xSemaphoreGive(pq.mutex);
 
-    uart_log("PRQ - Elemento eliminado de la cola de prioridades\r\n");
+    uart_log("PRQ - Elemento obtenido de la cola de prioridades\r\n");
     return true;
 }
 

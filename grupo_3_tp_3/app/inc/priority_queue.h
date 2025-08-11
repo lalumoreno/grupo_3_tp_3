@@ -9,7 +9,7 @@ typedef enum {
     PRIORIDAD_BAJA = 0,
     PRIORIDAD_MEDIA,
     PRIORIDAD_ALTA,
-    PRIORIDAD_MAX
+    PRIORIDAD_NONE
 } priority_t;
 
 /* Estructura del mensaje */

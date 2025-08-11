@@ -7,20 +7,43 @@
 #include "task_led.h"
 #include "priority_queue.h"
 
+void app_error_handler()
+{
+	while (1)
+	{
+		// Bucle infinito para detener la ejecución
+	}
+}
+
 void app_init(void)
 {
+	/* Crear tareas del sistema */
+	if(!uart_task_init())
+	{
+		app_error_handler();
+	}
+
+	//TODO handle errors
+	button_task_init();
+	
+	if(!ui_task_init())
+	{
+		uart_log("APP - Error al inicializar la tarea de UI\r\n");
+		app_error_handler();
+	}
+
+	if(!led_task_init())
+	{
+		uart_log("APP - Error al inicializar la tarea de LED\r\n");
+		app_error_handler();
+	}
+
 	// Inicializar cola de prioridades
 	if (!pq_init(10))
 	{
 		uart_log("APP - Error al inicializar la cola de prioridades\r\n");
-		return;
+		app_error_handler();
 	}
-
-	/* Crear tareas del sistema */
-	uart_task_init();
-	button_task_init();
-	ui_task_init();
-	led_task_init();
 
 	/* Enviar mensaje por UART */
 	uart_log("APP - App inicializada\r\n");
