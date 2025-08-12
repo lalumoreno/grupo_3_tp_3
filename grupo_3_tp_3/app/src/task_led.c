@@ -106,12 +106,15 @@ static bool led_create_event(led_event_t *event, pq_item_t *item)
 	switch (item->priority)
 	{
 	case PRIORIDAD_BAJA:
+		uart_log("LED - Elemento de prioridad BAJA\r\n");
 		event->type = LED_EVENT_BLUE;
 		break;
 	case PRIORIDAD_MEDIA:
 		event->type = LED_EVENT_GREEN;
+		uart_log("LED - Elemento de prioridad MEDIA\r\n");
 		break;
 	case PRIORIDAD_ALTA:
+		uart_log("LED - Elemento de prioridad ALTA\r\n");
 		event->type = LED_EVENT_RED;
 		break;
 	default:
@@ -149,7 +152,7 @@ static void led_process_event()
 				break;
 			}
 
-			// uart_log("LED - Evento led_event procesado \r\n");
+			uart_log("LED - Evento led_event procesado \r\n");
 			vTaskDelay(LED_ON_MS);
 			leds_off(); // Apagar LEDs después de un tiempo
 		}
